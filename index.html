@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+    <style media="screen">
+      :root {
+        --primary: black;
+        --bg: white;
+        --accent: #99d1e0;
+      }
+      
+      html {
+        font-family: monospace;
+        background: var(--bg);
+        color: var(--primary);
+      }
+      
+      input {
+        background: none;
+      }
+      
+      .unselectable {
+        user-select: none;
+        -moz-user-select: none;
+        -khtml-user-select: none;
+        -webkit-user-select: none;
+        -o-user-select: none;
+      }
+      
+      .container {
+        position: absolute;
+        top: 0;
+        text-align: center;
+        <!-- width: 500px; -->
+        <!-- white-space: nowrap; -->
+      }
+      .column {
+        float: left;
+        min-width: 300px;
+        border: 1px solid var(--primary);
+        margin: 1em;
+        padding: 1em;
+        height: 90vh;
+        display: inline-block;
+        box-sizing: border-box;
+        overflow: hidden;
+      }
+      .scroll {
+        overflow-y: scroll;
+      }
+      
+      canvas {
+        width: 80px;
+        height: 80px;
+        
+        border: 1px solid var(--primary);
+        
+        image-rendering: -moz-crisp-edges;
+        image-rendering: -webkit-crisp-edges;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        
+        cursor: pointer;
+      }
+      #preview {
+        position: absolute;
+        top: 43.5px;
+        left: 132.5px;
+        pointer-events: none;
+        border: none;
+      }
+      textarea {
+        width: 100%;
+      }
+      #text-output {
+        width: 512px;
+        height: 512px;
+        pointer-events: none;
+      }
+      button {
+        cursor: pointer;
+        border: 1px solid var(--bg);
+        color: var(--primary);
+        background: var(--bg);
+        font-family: inherit;
+        font-size: inherit;
+      }
+      li {
+        cursor: pointer;
+        border: 1px solid var(--bg);
+        color: var(--accent);
+      }
+      li.empty {
+        color: var(--primary);
+      }
+      li:hover, button:hover {
+        border: 1px solid var(--primary);
+      }
+      li:active, li.selected {
+        background: var(--accent);
+        color: var(--bg);
+        border: 1px solid var(--accent);
+      }
+      button:active {
+        color: var(--bg);
+      }
+      li.empty:active, li.selected.empty, button:active {
+        background: var(--primary);
+        border: 1px solid var(--primary);
+      }
+      
+      #text-input {
+        opacity: 0;
+        pointer-events: none;
+      }
+      
+      p {
+        margin-block-start: 0;
+        margin-block-end: 5px;
+        max-width: 300px;
+      }
+    </style>
+  </head>
+  <body>
+    
+    <textarea id="text-input" rows="8" cols="80" autofocus onblur="setTimeout( function(){ text_input.focus() }, 1 )"></textarea>
+    
+    <div class="container">
+      <div class="column unselectable">
+        <span id="title" style="text-align:left">ㄱ</span>
+        <br>
+        <canvas id="canvas" width="8" height="8"></canvas>
+        <canvas id="preview" width="8" height="8"></canvas>
+        <br>
+        <span id="bin">\0\0\0\0\0\0\0\0</span>
+        <br>
+        <button type="button" name="button" onclick="copy()">복사</button>
+        <br>
+        <br>
+        <textarea id="save-data"></textarea>
+        <br>
+        <button type="button" name="button" onclick="save_data.value=update_p8_data();navigator.clipboard.writeText('\0\0\0\0\0\0\0\0'+save_data.value);alert('클립보드로 데이터가 복사되었습니다.');">데이터 복사</button>
+        <button type="button" name="button" onclick="navigator.clipboard.readText().then(
+        function(clip) {
+          save_data.value = clip;
+          load();
+        })">클립보드에서 데이터 불러오기</button>
+        <br>
+        <button type="button" name="button" onclick="save_data.value = default_data; load();">기본 폰트 불러오기</button>
+        <br>
+        <br>
+        <hr>
+        <br>
+        <p><b>C:</b> 자음. 예) ㄱ,ㄴ,ㄷ...</p>
+        <p><b>V:</b> 모음. 예) ㅏ,ㅐ,ㅑ...</p>
+        <p><b>T:</b> 받침. 예) '금'의 'ㅁ'</p>
+        <p><b>평순-C:</b> '가'의 'ㄱ'</p>
+        <p><b>원순-C:</b> '소'의 'ㅅ'</p>
+        <p><b>중성-V:</b> '해'의 'ㅐ', '무'의 'ㅜ', '봐'의 'ㅘ'</p>
+        <p><i>앞에 'T'가 붙어있는 것은 받침이 있는 글자에 쓰인다는 의미입니다.</i></p>
+        <p><b>T평순-C:</b> '삽'의 'ㅅ'</p>
+        <p><b>T원순-C:</b> '뜰'의 'ㄸ'</p>
+        <p><b>T중성-V:</b> '겹'의 'ㅕ', '숲'의 'ㅜ', '씜'의 'ㅢ'</p>
+        <p><b>이중-C:</b> 모든 이중모음에 쓰이는 초성. 예) '획'의 'ㅎ'</p>
+      </div>
+      
+      <div class="column unselectable scroll" style="min-width: 170px;">
+        <ol id="list">
+        </ol>
+      </div>
+      
+      <div class="column unselectable">
+        TYPING SIMULATION
+        <br>
+        <canvas id="text-output" width="128" height="128"></canvas>
+        <br>
+        <br>
+        영어로 쳐야 한글이 입력됩니다
+      </div>
+    </div>
+    
+  </body>
+  
+  <script type="text/javascript" src="input.js"></script>
+  <script type="text/javascript" src="canvas.js"></script>
+</html>
